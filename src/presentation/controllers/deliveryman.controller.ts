@@ -7,7 +7,7 @@ import {
   Patch,
   Post,
   HttpStatus,
-  NotFoundException,
+  UseFilters,
 } from '@nestjs/common';
 import { 
   ApiTags, 
@@ -25,9 +25,12 @@ import { UpdateDeliveryManUseCase } from '../../core/application/use-cases/updat
 import { CreateDeliveryManDto } from '../dtos/create-deliveryman.dto';
 import { UpdateDeliveryManDto } from '../dtos/update-deliveryman.dto';
 import { ResponseDeliveryManDto } from '../dtos/response-deliveryman.dto';
+import { HttpExceptionFilter } from '../filters/http-exception.filter';
+import { HttpErrorMapper } from '../errors/http-error-mapper';
 
 @ApiTags('deliverymen')
 @Controller('deliverymen')
+@UseFilters(HttpExceptionFilter)
 export class DeliveryManController {
   constructor(
     private readonly createDeliveryManUseCase: CreateDeliveryManUseCase,
@@ -50,12 +53,16 @@ export class DeliveryManController {
     description: 'Invalid data' 
   })
   async create(@Body() createDeliveryManDto: CreateDeliveryManDto) {
-    const deliveryMan = await this.createDeliveryManUseCase.execute({
-      id: uuidv4(),
-      ...createDeliveryManDto,
-    });
+    try {
+      const deliveryMan = await this.createDeliveryManUseCase.execute({
+        id: uuidv4(),
+        ...createDeliveryManDto,
+      });
 
-    return deliveryMan.toJSON();
+      return deliveryMan.toJSON();
+    } catch (error) {
+      throw HttpErrorMapper.toHttpException(error);
+    }
   }
 
   @Get()
@@ -66,8 +73,12 @@ export class DeliveryManController {
     type: [ResponseDeliveryManDto]
   })
   async findAll() {
-    const deliveryMen = await this.listDeliveryMenUseCase.execute();
-    return deliveryMen.map((deliveryMan) => deliveryMan.toJSON());
+    try {
+      const deliveryMen = await this.listDeliveryMenUseCase.execute();
+      return deliveryMen.map((deliveryMan) => deliveryMan.toJSON());
+    } catch (error) {
+      throw HttpErrorMapper.toHttpException(error);
+    }
   }
 
   @Get(':id')
@@ -83,13 +94,12 @@ export class DeliveryManController {
     description: 'Delivery person not found' 
   })
   async findOne(@Param('id') id: string) {
-    const deliveryMan = await this.findDeliveryManUseCase.execute(id);
-    
-    if (!deliveryMan) {
-      throw new NotFoundException('Delivery person not found');
+    try {
+      const deliveryMan = await this.findDeliveryManUseCase.execute(id);
+      return deliveryMan.toJSON();
+    } catch (error) {
+      throw HttpErrorMapper.toHttpException(error);
     }
-    
-    return deliveryMan.toJSON();
   }
 
   @Patch(':id')
@@ -113,16 +123,16 @@ export class DeliveryManController {
     @Param('id') id: string,
     @Body() updateDeliveryManDto: UpdateDeliveryManDto,
   ) {
-    const deliveryMan = await this.updateDeliveryManUseCase.execute({
-      id,
-      ...updateDeliveryManDto,
-    });
-    
-    if (!deliveryMan) {
-      throw new NotFoundException('Delivery person not found');
+    try {
+      const deliveryMan = await this.updateDeliveryManUseCase.execute({
+        id,
+        ...updateDeliveryManDto,
+      });
+      
+      return deliveryMan.toJSON();
+    } catch (error) {
+      throw HttpErrorMapper.toHttpException(error);
     }
-    
-    return deliveryMan.toJSON();
   }
 
   @Delete(':id')
@@ -137,13 +147,11 @@ export class DeliveryManController {
     description: 'Delivery person not found' 
   })
   async remove(@Param('id') id: string) {
-    const deliveryMan = await this.findDeliveryManUseCase.execute(id);
-    
-    if (!deliveryMan) {
-      throw new NotFoundException('Delivery person not found');
+    try {
+      await this.deleteDeliveryManUseCase.execute(id);
+      return { success: true };
+    } catch (error) {
+      throw HttpErrorMapper.toHttpException(error);
     }
-    
-    await this.deleteDeliveryManUseCase.execute(id);
-    return { success: true };
   }
 }
