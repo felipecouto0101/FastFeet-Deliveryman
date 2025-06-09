@@ -1,6 +1,7 @@
 import { Inject } from '@nestjs/common';
 import { DeliveryMan } from '../../domain/entities/deliveryman.entity';
 import { DELIVERY_MAN_REPOSITORY, DeliveryManRepository } from '../../domain/repositories/deliveryman-repository.interface';
+import { DeliveryManNotFoundError } from '../../domain/errors/deliveryman-errors';
 
 export interface UpdateDeliveryManInput {
   id: string;
@@ -17,11 +18,11 @@ export class UpdateDeliveryManUseCase {
     private deliveryManRepository: DeliveryManRepository
   ) {}
 
-  async execute(input: UpdateDeliveryManInput): Promise<DeliveryMan | null> {
+  async execute(input: UpdateDeliveryManInput): Promise<DeliveryMan> {
     const deliveryMan = await this.deliveryManRepository.findById(input.id);
 
     if (!deliveryMan) {
-      return null;
+      throw new DeliveryManNotFoundError(input.id);
     }
 
     if (input.name) {
