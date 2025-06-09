@@ -24,6 +24,7 @@
     "@nestjs/common": "^10.0.0",
     "@nestjs/core": "^10.0.0",
     "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/swagger": "^11.2.0",
     "aws-cdk-lib": "^2.80.0",
     "aws-sdk": "^2.1400.0",
     "bcrypt": "^6.0.0",
@@ -33,6 +34,7 @@
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
     "source-map-support": "^0.5.21",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
