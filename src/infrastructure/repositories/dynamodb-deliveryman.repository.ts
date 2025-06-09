@@ -1,109 +1,161 @@
-import { DynamoDB } from 'aws-sdk';
+import { Injectable } from '@nestjs/common';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { 
+  DynamoDBDocumentClient, 
+  PutCommand, 
+  GetCommand, 
+  ScanCommand, 
+  UpdateCommand, 
+  DeleteCommand 
+} from '@aws-sdk/lib-dynamodb';
 import { DeliveryMan } from '../../core/domain/entities/deliveryman.entity';
 import { DeliveryManRepository } from '../../core/domain/repositories/deliveryman-repository.interface';
-import { Injectable } from '@nestjs/common';
+import { DatabaseConnectionError, DatabaseQueryError } from '../errors/database-errors';
+import { DeliveryManNotFoundError } from '../../core/domain/errors/deliveryman-errors';
 
 @Injectable()
 export class DynamoDBDeliveryManRepository implements DeliveryManRepository {
   private readonly tableName = 'DeliveryMen';
-  private readonly dynamoDB: DynamoDB.DocumentClient;
+  private readonly ddbDocClient: DynamoDBDocumentClient;
 
   constructor() {
-    this.dynamoDB = new DynamoDB.DocumentClient();
+    try {
+      const client = new DynamoDBClient({});
+      this.ddbDocClient = DynamoDBDocumentClient.from(client);
+    } catch (error) {
+      throw new DatabaseConnectionError(error.message);
+    }
   }
 
   async create(deliveryMan: DeliveryMan): Promise<void> {
-    await this.dynamoDB
-      .put({
+    try {
+      const command = new PutCommand({
         TableName: this.tableName,
         Item: {
           ...deliveryMan.toJSON(),
           createdAt: deliveryMan.createdAt.toISOString(),
           updatedAt: deliveryMan.updatedAt.toISOString(),
         },
-      })
-      .promise();
+      });
+
+      await this.ddbDocClient.send(command);
+    } catch (error) {
+      throw new DatabaseQueryError('create', error.message);
+    }
   }
 
   async findById(id: string): Promise<DeliveryMan | null> {
-    const result = await this.dynamoDB
-      .get({
+    try {
+      const command = new GetCommand({
         TableName: this.tableName,
         Key: { id },
-      })
-      .promise();
+      });
 
-    if (!result.Item) {
-      return null;
+      const response = await this.ddbDocClient.send(command);
+
+      if (!response.Item) {
+        return null;
+      }
+
+      return this.mapToEntity(response.Item);
+    } catch (error) {
+      throw new DatabaseQueryError('findById', error.message);
     }
-
-    return this.mapToEntity(result.Item);
   }
 
   async findAll(): Promise<DeliveryMan[]> {
-    const result = await this.dynamoDB
-      .scan({
+    try {
+      const command = new ScanCommand({
         TableName: this.tableName,
-      })
-      .promise();
+      });
 
-    return (result.Items || []).map(this.mapToEntity);
+      const response = await this.ddbDocClient.send(command);
+
+      return (response.Items || []).map(this.mapToEntity);
+    } catch (error) {
+      throw new DatabaseQueryError('findAll', error.message);
+    }
   }
 
   async update(deliveryMan: DeliveryMan): Promise<void> {
-    
-    const updateExpressionParts: string[] = [];
-    const expressionAttributeNames: Record<string, string> = {};
-    const expressionAttributeValues: Record<string, any> = {
-      ':updatedAt': deliveryMan.updatedAt.toISOString(),
-    };
+    try {
+      // Check if delivery man exists
+      const existingDeliveryMan = await this.findById(deliveryMan.id);
+      if (!existingDeliveryMan) {
+        throw new DeliveryManNotFoundError(deliveryMan.id);
+      }
 
-    if (deliveryMan.name) {
-      updateExpressionParts.push('#name = :name');
-      expressionAttributeNames['#name'] = 'name';
-      expressionAttributeValues[':name'] = deliveryMan.name;
-    }
+      const updateExpressionParts: string[] = [];
+      const expressionAttributeNames: Record<string, string> = {};
+      const expressionAttributeValues: Record<string, any> = {
+        ':updatedAt': deliveryMan.updatedAt.toISOString(),
+      };
 
-    if (deliveryMan.email) {
-      updateExpressionParts.push('email = :email');
-      expressionAttributeValues[':email'] = deliveryMan.email;
-    }
+      if (deliveryMan.name) {
+        updateExpressionParts.push('#name = :name');
+        expressionAttributeNames['#name'] = 'name';
+        expressionAttributeValues[':name'] = deliveryMan.name;
+      }
 
-    if (deliveryMan.phone) {
-      updateExpressionParts.push('phone = :phone');
-      expressionAttributeValues[':phone'] = deliveryMan.phone;
-    }
+      if (deliveryMan.email) {
+        updateExpressionParts.push('email = :email');
+        expressionAttributeValues[':email'] = deliveryMan.email;
+      }
 
-    if (deliveryMan.password) {
-      updateExpressionParts.push('#password = :password');
-      expressionAttributeNames['#password'] = 'password';
-      expressionAttributeValues[':password'] = deliveryMan.password;
-    }
+      if (deliveryMan.phone) {
+        updateExpressionParts.push('phone = :phone');
+        expressionAttributeValues[':phone'] = deliveryMan.phone;
+      }
 
-    updateExpressionParts.push('isActive = :isActive');
-    updateExpressionParts.push('updatedAt = :updatedAt');
-    expressionAttributeValues[':isActive'] = deliveryMan.isActive;
+      if (deliveryMan.password) {
+        updateExpressionParts.push('#password = :password');
+        expressionAttributeNames['#password'] = 'password';
+        expressionAttributeValues[':password'] = deliveryMan.password;
+      }
 
-    const updateExpression = `set ${updateExpressionParts.join(', ')}`;
+      updateExpressionParts.push('isActive = :isActive');
+      updateExpressionParts.push('updatedAt = :updatedAt');
+      expressionAttributeValues[':isActive'] = deliveryMan.isActive;
 
-    await this.dynamoDB
-      .update({
+      const updateExpression = `set ${updateExpressionParts.join(', ')}`;
+
+      const command = new UpdateCommand({
         TableName: this.tableName,
         Key: { id: deliveryMan.id },
         UpdateExpression: updateExpression,
         ExpressionAttributeNames: expressionAttributeNames,
         ExpressionAttributeValues: expressionAttributeValues,
-      })
-      .promise();
+      });
+
+      await this.ddbDocClient.send(command);
+    } catch (error) {
+      if (error instanceof DeliveryManNotFoundError) {
+        throw error;
+      }
+      throw new DatabaseQueryError('update', error.message);
+    }
   }
 
   async delete(id: string): Promise<void> {
-    await this.dynamoDB
-      .delete({
+    try {
+      // Check if delivery man exists
+      const existingDeliveryMan = await this.findById(id);
+      if (!existingDeliveryMan) {
+        throw new DeliveryManNotFoundError(id);
+      }
+
+      const command = new DeleteCommand({
         TableName: this.tableName,
         Key: { id },
-      })
-      .promise();
+      });
+
+      await this.ddbDocClient.send(command);
+    } catch (error) {
+      if (error instanceof DeliveryManNotFoundError) {
+        throw error;
+      }
+      throw new DatabaseQueryError('delete', error.message);
+    }
   }
 
   private mapToEntity(item: any): DeliveryMan {

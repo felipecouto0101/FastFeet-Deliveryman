@@ -15,7 +15,7 @@ export class DeliveryManTable extends Construct {
         type: dynamodb.AttributeType.STRING,
       },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY, 
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
   }
 }
