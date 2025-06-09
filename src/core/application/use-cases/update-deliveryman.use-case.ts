@@ -37,7 +37,7 @@ export class UpdateDeliveryManUseCase {
     }
 
     if (input.password) {
-      deliveryMan.password = input.password;
+      await deliveryMan.setPassword(input.password);
     }
 
     if (input.isActive !== undefined) {

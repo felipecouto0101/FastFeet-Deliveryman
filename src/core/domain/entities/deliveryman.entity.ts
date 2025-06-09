@@ -1,3 +1,5 @@
+import * as bcrypt from 'bcrypt';
+
 export class DeliveryMan {
   constructor(
     private readonly _id: string,
@@ -55,9 +57,14 @@ export class DeliveryMan {
     return this._password;
   }
 
-  set password(password: string) {
-    this._password = password;
+  async setPassword(password: string): Promise<void> {
+    const salt = await bcrypt.genSalt();
+    this._password = await bcrypt.hash(password, salt);
     this._updatedAt = new Date();
+  }
+
+  async validatePassword(password: string): Promise<boolean> {
+    return bcrypt.compare(password, this._password);
   }
 
   get isActive(): boolean {

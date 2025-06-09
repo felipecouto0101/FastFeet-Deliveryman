@@ -24,8 +24,11 @@ export class CreateDeliveryManUseCase {
       input.email,
       input.cpf,
       input.phone,
-      input.password,
+      '',
     );
+    
+   
+    await deliveryMan.setPassword(input.password);
 
     await this.deliveryManRepository.create(deliveryMan);
 
