@@ -9,7 +9,7 @@ import {
   DeleteCommand 
 } from '@aws-sdk/lib-dynamodb';
 import { DeliveryMan } from '../../core/domain/entities/deliveryman.entity';
-import { DeliveryManRepository } from '../../core/domain/repositories/deliveryman-repository.interface';
+import { DeliveryManRepository, PaginationParams, PaginatedResult } from '../../core/domain/repositories/deliveryman-repository.interface';
 import { DatabaseConnectionError, DatabaseQueryError } from '../errors/database-errors';
 import { DeliveryManNotFoundError } from '../../core/domain/errors/deliveryman-errors';
 
@@ -63,15 +63,38 @@ export class DynamoDBDeliveryManRepository implements DeliveryManRepository {
     }
   }
 
-  async findAll(): Promise<DeliveryMan[]> {
+  async findAll(params?: PaginationParams): Promise<PaginatedResult<DeliveryMan>> {
     try {
-      const command = new ScanCommand({
+      const scanParams: any = {
         TableName: this.tableName,
-      });
+      };
 
-      const response = await this.ddbDocClient.send(command);
+      if (params?.limit) {
+        scanParams.Limit = params.limit;
+      }
 
-      return (response.Items || []).map(this.mapToEntity);
+      if (params?.lastEvaluatedKey) {
+        scanParams.ExclusiveStartKey = JSON.parse(
+          Buffer.from(params.lastEvaluatedKey, 'base64').toString()
+        );
+      }
+
+      const response = await this.ddbDocClient.send(new ScanCommand(scanParams));
+
+      const items = (response.Items || []).map(this.mapToEntity);
+      
+      let lastEvaluatedKey: string | undefined;
+      if (response.LastEvaluatedKey) {
+        lastEvaluatedKey = Buffer.from(
+          JSON.stringify(response.LastEvaluatedKey)
+        ).toString('base64');
+      }
+
+      return {
+        items,
+        lastEvaluatedKey,
+        hasNext: !!response.LastEvaluatedKey,
+      };
     } catch (error) {
       throw new DatabaseQueryError('findAll', error.message);
     }
@@ -79,7 +102,6 @@ export class DynamoDBDeliveryManRepository implements DeliveryManRepository {
 
   async update(deliveryMan: DeliveryMan): Promise<void> {
     try {
-      // Check if delivery man exists
       const existingDeliveryMan = await this.findById(deliveryMan.id);
       if (!existingDeliveryMan) {
         throw new DeliveryManNotFoundError(deliveryMan.id);
@@ -138,7 +160,6 @@ export class DynamoDBDeliveryManRepository implements DeliveryManRepository {
 
   async delete(id: string): Promise<void> {
     try {
-      // Check if delivery man exists
       const existingDeliveryMan = await this.findById(id);
       if (!existingDeliveryMan) {
         throw new DeliveryManNotFoundError(id);
