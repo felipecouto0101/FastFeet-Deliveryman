@@ -16,8 +16,8 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
   
   const config = new DocumentBuilder()
-    .setTitle('FastFeet API')
-    .setDescription('API for managing deliveries for FastFeet delivery company')
+    .setTitle('FastFeet Deliveryman API')
+    .setDescription('Microservice for managing delivery personnel')
     .setVersion('1.0')
     .addTag('deliverymen', 'Operations related to delivery personnel')
     .addBearerAuth()
@@ -27,5 +27,7 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
   
   await app.listen(3000);
+  console.log('🚀 Deliveryman microservice running on http://localhost:3000');
+  console.log('📚 API Documentation available at http://localhost:3000/api');
 }
 bootstrap();
