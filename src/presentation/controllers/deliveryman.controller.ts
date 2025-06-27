@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   HttpStatus,
   UseFilters,
 } from '@nestjs/common';
@@ -14,7 +15,8 @@ import {
   ApiOperation, 
   ApiResponse, 
   ApiParam, 
-  ApiBody 
+  ApiBody,
+  ApiQuery
 } from '@nestjs/swagger';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateDeliveryManUseCase } from '../../core/application/use-cases/create-deliveryman.use-case';
@@ -25,6 +27,8 @@ import { UpdateDeliveryManUseCase } from '../../core/application/use-cases/updat
 import { CreateDeliveryManDto } from '../dtos/create-deliveryman.dto';
 import { UpdateDeliveryManDto } from '../dtos/update-deliveryman.dto';
 import { ResponseDeliveryManDto } from '../dtos/response-deliveryman.dto';
+import { PaginationQueryDto } from '../dtos/pagination.dto';
+import { PaginatedResponseDto } from '../dtos/paginated-response.dto';
 import { HttpExceptionFilter } from '../filters/http-exception.filter';
 import { HttpErrorMapper } from '../errors/http-error-mapper';
 
@@ -66,16 +70,27 @@ export class DeliveryManController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List all delivery people' })
+  @ApiOperation({ summary: 'List delivery people with pagination' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Number of items per page (1-100)' })
+  @ApiQuery({ name: 'lastEvaluatedKey', required: false, type: String, description: 'Last evaluated key for pagination' })
   @ApiResponse({ 
     status: HttpStatus.OK, 
-    description: 'List of delivery people successfully returned',
-    type: [ResponseDeliveryManDto]
+    description: 'Paginated list of delivery people successfully returned',
+    type: PaginatedResponseDto
   })
-  async findAll() {
+  async findAll(@Query() paginationQuery: PaginationQueryDto) {
     try {
-      const deliveryMen = await this.listDeliveryMenUseCase.execute();
-      return deliveryMen.map((deliveryMan) => deliveryMan.toJSON());
+      const result = await this.listDeliveryMenUseCase.execute({
+        limit: paginationQuery.limit || 10,
+        lastEvaluatedKey: paginationQuery.lastEvaluatedKey,
+      });
+
+      return {
+        items: result.items.map((deliveryMan) => deliveryMan.toJSON()),
+        lastEvaluatedKey: result.lastEvaluatedKey,
+        hasNext: result.hasNext,
+        count: result.items.length,
+      };
     } catch (error) {
       throw HttpErrorMapper.toHttpException(error);
     }
