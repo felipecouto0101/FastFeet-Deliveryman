@@ -1,6 +1,7 @@
 import { Inject } from '@nestjs/common';
 import { DeliveryMan } from '../../domain/entities/deliveryman.entity';
 import { DELIVERY_MAN_REPOSITORY, DeliveryManRepository } from '../../domain/repositories/deliveryman-repository.interface';
+import { EVENT_PUBLISHER, EventPublisher } from '../../domain/events/event-publisher.interface';
 import { DeliveryManNotFoundError } from '../../domain/errors/deliveryman-errors';
 
 export interface UpdateDeliveryManInput {
@@ -15,7 +16,9 @@ export interface UpdateDeliveryManInput {
 export class UpdateDeliveryManUseCase {
   constructor(
     @Inject(DELIVERY_MAN_REPOSITORY)
-    private deliveryManRepository: DeliveryManRepository
+    private deliveryManRepository: DeliveryManRepository,
+    @Inject(EVENT_PUBLISHER)
+    private eventPublisher: EventPublisher
   ) {}
 
   async execute(input: UpdateDeliveryManInput): Promise<DeliveryMan> {
@@ -46,6 +49,12 @@ export class UpdateDeliveryManUseCase {
     }
 
     await this.deliveryManRepository.update(deliveryMan);
+
+    // Publish domain events
+    if (deliveryMan.domainEvents.length > 0) {
+      await this.eventPublisher.publishBatch(deliveryMan.domainEvents);
+      deliveryMan.clearEvents();
+    }
 
     return deliveryMan;
   }
