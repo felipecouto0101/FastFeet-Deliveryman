@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { InfrastructureModule } from '../infrastructure/infrastructure.module';
+import { AuthModule } from '../auth/auth.module';
 import { DeliveryManController } from '../../presentation/controllers/deliveryman.controller';
 import { CreateDeliveryManUseCase } from '../../core/application/use-cases/create-deliveryman.use-case';
 import { FindDeliveryManUseCase } from '../../core/application/use-cases/find-deliveryman.use-case';
@@ -8,7 +9,7 @@ import { UpdateDeliveryManUseCase } from '../../core/application/use-cases/updat
 import { DeleteDeliveryManUseCase } from '../../core/application/use-cases/delete-deliveryman.use-case';
 
 @Module({
-  imports: [InfrastructureModule],
+  imports: [InfrastructureModule, AuthModule],
   controllers: [DeliveryManController],
   providers: [
     CreateDeliveryManUseCase,
