@@ -6,6 +6,8 @@ import { ListDeliveryMenUseCase } from '../core/application/use-cases/list-deliv
 import { UpdateDeliveryManUseCase } from '../core/application/use-cases/update-deliveryman.use-case';
 import { RepositoryModule } from '../infrastructure/modules/repository.module';
 import { DeliveryManController } from '../presentation/controllers/deliveryman.controller';
+import { EVENT_PUBLISHER } from '../core/domain/events/event-publisher.interface';
+import { SQSEventPublisher } from '../infrastructure/messaging/sqs-event-publisher';
 
 @Module({
   imports: [RepositoryModule],
@@ -16,6 +18,10 @@ import { DeliveryManController } from '../presentation/controllers/deliveryman.c
     ListDeliveryMenUseCase,
     UpdateDeliveryManUseCase,
     DeleteDeliveryManUseCase,
+    {
+      provide: EVENT_PUBLISHER,
+      useClass: SQSEventPublisher,
+    },
   ],
 })
 export class DeliveryManModule {}

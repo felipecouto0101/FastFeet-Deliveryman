@@ -4,7 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './presentation/filters/http-exception.filter';
 
-async function bootstrap() {
+export async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
   app.useGlobalPipes(new ValidationPipe({
@@ -30,4 +30,11 @@ async function bootstrap() {
   console.log('🚀 Deliveryman microservice running on http://localhost:3000');
   console.log('📚 API Documentation available at http://localhost:3000/api');
 }
-bootstrap();
+
+export function isMainModule(): boolean {
+  return require.main === module;
+}
+
+if (isMainModule()) {
+  bootstrap();
+}

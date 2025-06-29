@@ -7,6 +7,7 @@ export class SQSConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly sqsClient: SQSClient;
   private readonly handlers: Map<string, MessageHandler> = new Map();
   private isRunning = false;
+  private isConsuming = false;
   private pollingInterval: NodeJS.Timeout | null = null;
 
   constructor() {
@@ -23,6 +24,33 @@ export class SQSConsumer implements OnModuleInit, OnModuleDestroy {
 
   registerHandler(queueUrl: string, handler: MessageHandler): void {
     this.handlers.set(queueUrl, handler);
+  }
+
+  async startConsuming(queueUrl: string, handler: MessageHandler): Promise<void> {
+    this.registerHandler(queueUrl, handler);
+    this.isConsuming = true;
+    
+    if (process.env.NODE_ENV === 'test') {
+      await this.pollQueue(queueUrl, handler);
+    } else {
+      this.startPolling();
+    }
+    
+    return new Promise((resolve) => {
+      const checkStop = () => {
+        if (!this.isConsuming) {
+          resolve();
+        } else {
+          setTimeout(checkStop, 100);
+        }
+      };
+      checkStop();
+    });
+  }
+
+  stopConsuming(): void {
+    this.isConsuming = false;
+    this.stopPolling();
   }
 
   private startPolling(): void {
