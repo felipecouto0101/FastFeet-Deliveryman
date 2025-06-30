@@ -9,6 +9,7 @@ import {
   Query,
   HttpStatus,
   UseFilters,
+  UseGuards,
 } from '@nestjs/common';
 import { 
   ApiTags, 
@@ -31,10 +32,12 @@ import { PaginationQueryDto } from '../dtos/pagination.dto';
 import { PaginatedResponseDto } from '../dtos/paginated-response.dto';
 import { HttpExceptionFilter } from '../filters/http-exception.filter';
 import { HttpErrorMapper } from '../errors/http-error-mapper';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 
 @ApiTags('deliverymen')
 @Controller('deliverymen')
 @UseFilters(HttpExceptionFilter)
+@UseGuards(JwtAuthGuard)
 export class DeliveryManController {
   constructor(
     private readonly createDeliveryManUseCase: CreateDeliveryManUseCase,

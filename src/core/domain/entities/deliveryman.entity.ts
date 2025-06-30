@@ -1,6 +1,10 @@
 import * as bcrypt from 'bcrypt';
+import { DomainEvent } from '../events/domain-event';
+import { DeliveryManCreatedEvent, DeliveryManActivatedEvent, DeliveryManDeactivatedEvent, DeliveryManDeletedEvent } from '../events/deliveryman-events';
 
 export class DeliveryMan {
+  private _domainEvents: DomainEvent[] = [];
+
   constructor(
     private readonly _id: string,
     private _name: string,
@@ -72,13 +76,19 @@ export class DeliveryMan {
   }
 
   activate(): void {
-    this._isActive = true;
-    this._updatedAt = new Date();
+    if (!this._isActive) {
+      this._isActive = true;
+      this._updatedAt = new Date();
+      this.addDomainEvent(new DeliveryManActivatedEvent(this._id, this._name));
+    }
   }
 
   deactivate(): void {
-    this._isActive = false;
-    this._updatedAt = new Date();
+    if (this._isActive) {
+      this._isActive = false;
+      this._updatedAt = new Date();
+      this.addDomainEvent(new DeliveryManDeactivatedEvent(this._id, this._name));
+    }
   }
 
   get createdAt(): Date {
@@ -87,6 +97,32 @@ export class DeliveryMan {
 
   get updatedAt(): Date {
     return this._updatedAt;
+  }
+
+  get domainEvents(): DomainEvent[] {
+    return this._domainEvents;
+  }
+
+  markAsCreated(): void {
+    this.addDomainEvent(new DeliveryManCreatedEvent(
+      this._id,
+      this._name,
+      this._email,
+      this._cpf,
+      this._phone
+    ));
+  }
+
+  markAsDeleted(): void {
+    this.addDomainEvent(new DeliveryManDeletedEvent(this._id, this._name));
+  }
+
+  clearEvents(): void {
+    this._domainEvents = [];
+  }
+
+  private addDomainEvent(event: DomainEvent): void {
+    this._domainEvents.push(event);
   }
 
   toJSON() {

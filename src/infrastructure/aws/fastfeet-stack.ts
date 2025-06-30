@@ -7,6 +7,6 @@ export class FastfeetStack extends cdk.Stack {
     super(scope, id, props);
 
     
-    const deliveryManTable = new DeliveryManTable(this, 'DeliveryManTable');
+    new DeliveryManTable(this, 'DeliveryManTable');
   }
 }
