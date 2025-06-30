@@ -1,5 +1,5 @@
 import { SQSConsumer } from './sqs-consumer';
-import { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
+import { SQSClient, ReceiveMessageCommand } from '@aws-sdk/client-sqs';
 
 jest.mock('@aws-sdk/client-sqs');
 

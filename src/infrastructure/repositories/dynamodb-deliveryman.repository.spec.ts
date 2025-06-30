@@ -1,7 +1,7 @@
 import { DynamoDBDeliveryManRepository } from './dynamodb-deliveryman.repository';
 import { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { DeliveryMan } from '../../core/domain/entities/deliveryman.entity';
-import { DatabaseConnectionError, DatabaseQueryError } from '../errors/database-errors';
+import { DatabaseQueryError } from '../errors/database-errors';
 
 jest.mock('@aws-sdk/lib-dynamodb');
 

@@ -1,7 +1,6 @@
 import { BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { HttpErrorMapper } from './http-error-mapper';
 import { DeliveryManNotFoundError, InvalidEmailError, InvalidCpfError, InvalidPasswordError } from '../../core/domain/errors/deliveryman-errors';
-import { DomainError } from '../../core/domain/errors/domain-error';
 import { ApplicationError } from '../../core/application/errors/application-error';
 import { InfrastructureError } from '../../infrastructure/errors/infrastructure-error';
 import { DatabaseConnectionError, DatabaseQueryError } from '../../infrastructure/errors/database-errors';

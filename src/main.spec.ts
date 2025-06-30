@@ -58,7 +58,7 @@ describe('Bootstrap', () => {
     const { bootstrap } = require('./main');
     const { NestFactory } = require('@nestjs/core');
     const { SwaggerModule } = require('@nestjs/swagger');
-    const { ValidationPipe } = require('@nestjs/common');
+    // ValidationPipe imported but not used in this test
     
     await bootstrap();
 
@@ -148,7 +148,7 @@ describe('Bootstrap', () => {
       
      
       delete require.cache[mainModulePath];
-      const mainModule = await import('./main');
+      await import('./main');
       
       
       require.main = { id: 'different-module' } as any;
