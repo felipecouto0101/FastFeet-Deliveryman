@@ -70,7 +70,7 @@ describe('DeliveryMan Entity', () => {
       const oldUpdatedAt = deliveryMan.updatedAt;
       const newEmail = 'jane@example.com';
       
-      await new Promise(resolve => setTimeout(resolve, 1));
+      await new Promise(resolve => setTimeout(resolve, 10));
       deliveryMan.email = newEmail;
       
       expect(deliveryMan.email).toBe(newEmail);
