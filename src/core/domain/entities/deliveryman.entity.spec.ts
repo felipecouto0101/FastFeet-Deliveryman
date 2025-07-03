@@ -59,7 +59,7 @@ describe('DeliveryMan Entity', () => {
       const oldUpdatedAt = deliveryMan.updatedAt;
       const newName = 'Jane Doe';
       
-      await new Promise(resolve => setTimeout(resolve, 1));
+      await new Promise(resolve => setTimeout(resolve, 10));
       deliveryMan.name = newName;
       
       expect(deliveryMan.name).toBe(newName);
