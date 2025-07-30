@@ -167,6 +167,116 @@ describe('DynamoDBDeliveryManRepository', () => {
     });
   });
 
+  describe('findByCpf', () => {
+    it('should return delivery man when found by CPF', async () => {
+      const mockItem = {
+        id: '123',
+        name: 'John Doe',
+        email: 'john@example.com',
+        cpf: '123.456.789-00',
+        phone: '(11) 99999-9999',
+        password: 'hashedPassword',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      (mockDdbDocClient.send as jest.Mock).mockResolvedValue({ Items: [mockItem] });
+
+      const result = await repository.findByCpf('123.456.789-00');
+
+      expect(result).toBeInstanceOf(DeliveryMan);
+      expect(result?.cpf).toBe('123.456.789-00');
+      expect(mockDdbDocClient.send).toHaveBeenCalledWith(expect.any(ScanCommand));
+    });
+
+    it('should return null when delivery man not found by CPF', async () => {
+      (mockDdbDocClient.send as jest.Mock).mockResolvedValue({ Items: [] });
+
+      const result = await repository.findByCpf('999.999.999-99');
+
+      expect(result).toBeNull();
+    });
+
+    it('should throw DatabaseQueryError on findByCpf failure', async () => {
+      const error = new Error('DynamoDB Error');
+      (mockDdbDocClient.send as jest.Mock).mockRejectedValue(error);
+
+      await expect(repository.findByCpf('123.456.789-00')).rejects.toThrow(DatabaseQueryError);
+    });
+  });
+
+  describe('constructor error handling', () => {
+    it('should throw DatabaseConnectionError on client creation failure', () => {
+      const originalFrom = DynamoDBDocumentClient.from;
+      (DynamoDBDocumentClient.from as jest.Mock).mockImplementation(() => {
+        throw new Error('Client creation failed');
+      });
+
+      expect(() => new DynamoDBDeliveryManRepository()).toThrow('Client creation failed');
+      
+      DynamoDBDocumentClient.from = originalFrom;
+    });
+  });
+
+  describe('findAll with pagination', () => {
+    it('should handle lastEvaluatedKey parameter', async () => {
+      const mockItems = [{
+        id: '123',
+        name: 'John Doe',
+        email: 'john@example.com',
+        cpf: '123.456.789-00',
+        phone: '(11) 99999-9999',
+        password: 'hashedPassword',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }];
+
+      (mockDdbDocClient.send as jest.Mock).mockResolvedValue({ Items: mockItems });
+
+      const encodedKey = Buffer.from(JSON.stringify({ id: '123' })).toString('base64');
+      const result = await repository.findAll({ limit: 10, lastEvaluatedKey: encodedKey });
+
+      expect(result.items).toHaveLength(1);
+      expect(mockDdbDocClient.send).toHaveBeenCalledWith(expect.any(ScanCommand));
+    });
+  });
+
+  describe('update with different fields', () => {
+    it('should update delivery man with all fields', async () => {
+      const mockExistingItem = {
+        id: '123',
+        name: 'John Doe',
+        email: 'john@example.com',
+        cpf: '123.456.789-00',
+        phone: '(11) 99999-9999',
+        password: 'hashedPassword',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const updatedDeliveryMan = new DeliveryMan(
+        '123',
+        'Jane Doe',
+        'jane@example.com',
+        '123.456.789-00',
+        '(11) 88888-8888',
+        'newHashedPassword',
+        false
+      );
+      
+      (mockDdbDocClient.send as jest.Mock)
+        .mockResolvedValueOnce({ Item: mockExistingItem })
+        .mockResolvedValueOnce({});
+
+      await repository.update(updatedDeliveryMan);
+
+      expect(mockDdbDocClient.send).toHaveBeenCalledWith(expect.any(UpdateCommand));
+    });
+  });
+
   describe('delete', () => {
     it('should delete delivery man successfully', async () => {
       const mockItem = {
@@ -182,8 +292,8 @@ describe('DynamoDBDeliveryManRepository', () => {
       };
       
       (mockDdbDocClient.send as jest.Mock)
-        .mockResolvedValueOnce({ Item: mockItem }) 
-        .mockResolvedValueOnce({}); 
+        .mockResolvedValueOnce({ Item: mockItem })
+        .mockResolvedValueOnce({});
 
       await repository.delete('123');
 

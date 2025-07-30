@@ -21,7 +21,9 @@ export class SQSConsumer implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleInit() {
-    this.startPolling();
+    if (process.env.NODE_ENV !== 'test') {
+      this.startPolling();
+    }
   }
 
   onModuleDestroy() {
