@@ -17,6 +17,7 @@ describe('DeleteDeliveryManUseCase', () => {
     mockRepository = {
       create: jest.fn(),
       findById: jest.fn(),
+      findByCpf: jest.fn(),
       findAll: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
