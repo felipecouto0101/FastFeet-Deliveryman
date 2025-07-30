@@ -113,7 +113,14 @@ describe('SQSConsumer', () => {
   });
 
   describe('onModuleInit', () => {
-    it('should start polling on module init', () => {
+    it('should not start polling in test environment', () => {
+      const startPollingSpy = jest.spyOn(consumer as any, 'startPolling');
+      consumer.onModuleInit();
+      expect(startPollingSpy).not.toHaveBeenCalled();
+    });
+
+    it('should start polling in non-test environment', () => {
+      process.env.NODE_ENV = 'production';
       const startPollingSpy = jest.spyOn(consumer as any, 'startPolling');
       consumer.onModuleInit();
       expect(startPollingSpy).toHaveBeenCalled();
@@ -228,6 +235,180 @@ describe('SQSConsumer', () => {
       expect(startPollingSpy).toHaveBeenCalled();
       
       consumer.stopConsuming();
+    });
+  });
+
+  describe('service request processing', () => {
+    it('should process service request when messageType is REQUEST', async () => {
+      const mockRequestHandler = {
+        handle: jest.fn().mockResolvedValue({ status: 'SUCCESS' })
+      };
+      const mockResponsePublisher = {
+        publishResponse: jest.fn().mockResolvedValue(undefined)
+      };
+      
+      const consumerWithHandlers = new (SQSConsumer as any)(mockRequestHandler, mockResponsePublisher);
+      const mockHandler = { handle: jest.fn() };
+      const queueUrl = 'https://sqs.us-east-1.amazonaws.com/123456789012/test-queue';
+      
+      const serviceRequest = {
+        type: 'VALIDATE_DELIVERYMAN_BY_CPF',
+        data: { cpf: '123.456.789-00' },
+        replyTo: 'response-queue'
+      };
+      
+      (mockSQSClient.send as jest.Mock)
+        .mockResolvedValueOnce({
+          Messages: [
+            {
+              MessageId: '123',
+              Body: JSON.stringify(serviceRequest),
+              ReceiptHandle: 'receipt-123',
+              MessageAttributes: {
+                messageType: { StringValue: 'REQUEST' }
+              }
+            }
+          ]
+        })
+        .mockResolvedValueOnce({}); 
+
+      const promise = consumerWithHandlers.startConsuming(queueUrl, mockHandler);
+      
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      expect(mockRequestHandler.handle).toHaveBeenCalled();
+      expect(mockResponsePublisher.publishResponse).toHaveBeenCalled();
+      
+      consumerWithHandlers.stopConsuming();
+      await promise;
+    });
+
+    it('should handle service request without replyTo', async () => {
+      const mockRequestHandler = {
+        handle: jest.fn().mockResolvedValue({ status: 'SUCCESS' })
+      };
+      const mockResponsePublisher = {
+        publishResponse: jest.fn().mockResolvedValue(undefined)
+      };
+      
+      const consumerWithHandlers = new (SQSConsumer as any)(mockRequestHandler, mockResponsePublisher);
+      const mockHandler = { handle: jest.fn() };
+      const queueUrl = 'https://sqs.us-east-1.amazonaws.com/123456789012/test-queue';
+      
+      const serviceRequest = {
+        type: 'VALIDATE_DELIVERYMAN_BY_CPF',
+        data: { cpf: '123.456.789-00' }
+        
+      };
+      
+      (mockSQSClient.send as jest.Mock)
+        .mockResolvedValueOnce({
+          Messages: [
+            {
+              MessageId: '123',
+              Body: JSON.stringify(serviceRequest),
+              ReceiptHandle: 'receipt-123',
+              MessageAttributes: {
+                messageType: { StringValue: 'REQUEST' }
+              }
+            }
+          ]
+        })
+        .mockResolvedValueOnce({}); 
+
+      const promise = consumerWithHandlers.startConsuming(queueUrl, mockHandler);
+      
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      expect(mockRequestHandler.handle).toHaveBeenCalled();
+      expect(mockResponsePublisher.publishResponse).not.toHaveBeenCalled();
+      
+      consumerWithHandlers.stopConsuming();
+      await promise;
+    });
+
+    it('should handle service request processing error', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const mockRequestHandler = {
+        handle: jest.fn().mockRejectedValue(new Error('Request processing error'))
+      };
+      const mockResponsePublisher = {
+        publishResponse: jest.fn().mockResolvedValue(undefined)
+      };
+      
+      const consumerWithHandlers = new (SQSConsumer as any)(mockRequestHandler, mockResponsePublisher);
+      const mockHandler = { handle: jest.fn() };
+      const queueUrl = 'https://sqs.us-east-1.amazonaws.com/123456789012/test-queue';
+      
+      const serviceRequest = {
+        type: 'VALIDATE_DELIVERYMAN_BY_CPF',
+        data: { cpf: '123.456.789-00' },
+        replyTo: 'response-queue'
+      };
+      
+      (mockSQSClient.send as jest.Mock)
+        .mockResolvedValueOnce({
+          Messages: [
+            {
+              MessageId: '123',
+              Body: JSON.stringify(serviceRequest),
+              ReceiptHandle: 'receipt-123',
+              MessageAttributes: {
+                messageType: { StringValue: 'REQUEST' }
+              }
+            }
+          ]
+        })
+        .mockResolvedValueOnce({}); 
+
+      const promise = consumerWithHandlers.startConsuming(queueUrl, mockHandler);
+      
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      expect(consoleSpy).toHaveBeenCalledWith('Error processing service request:', expect.any(Error));
+      
+      consumerWithHandlers.stopConsuming();
+      await promise;
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle JSON parse error in service request', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const mockRequestHandler = {
+        handle: jest.fn().mockResolvedValue({ status: 'SUCCESS' })
+      };
+      const mockResponsePublisher = {
+        publishResponse: jest.fn().mockResolvedValue(undefined)
+      };
+      
+      const consumerWithHandlers = new (SQSConsumer as any)(mockRequestHandler, mockResponsePublisher);
+      const mockHandler = { handle: jest.fn() };
+      const queueUrl = 'https://sqs.us-east-1.amazonaws.com/123456789012/test-queue';
+      
+      (mockSQSClient.send as jest.Mock)
+        .mockResolvedValueOnce({
+          Messages: [
+            {
+              MessageId: '123',
+              Body: 'invalid json',
+              ReceiptHandle: 'receipt-123',
+              MessageAttributes: {
+                messageType: { StringValue: 'REQUEST' }
+              }
+            }
+          ]
+        })
+        .mockResolvedValueOnce({}); 
+
+      const promise = consumerWithHandlers.startConsuming(queueUrl, mockHandler);
+      
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      expect(consoleSpy).toHaveBeenCalledWith('Error processing service request:', expect.any(Error));
+      
+      consumerWithHandlers.stopConsuming();
+      await promise;
+      consoleSpy.mockRestore();
     });
   });
 });
