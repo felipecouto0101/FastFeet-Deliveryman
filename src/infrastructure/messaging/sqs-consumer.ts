@@ -1,6 +1,9 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
 import { MessageHandler, SQSMessage } from './message-handler.interface';
+import { ServiceRequest } from './request-response.interface';
+import { DeliveryManRequestHandler } from './deliveryman-request-handler';
+import { SQSResponsePublisher } from './sqs-response-publisher';
 
 @Injectable()
 export class SQSConsumer implements OnModuleInit, OnModuleDestroy {
@@ -10,7 +13,10 @@ export class SQSConsumer implements OnModuleInit, OnModuleDestroy {
   private isConsuming = false;
   private pollingInterval: NodeJS.Timeout | null = null;
 
-  constructor() {
+  constructor(
+    private readonly requestHandler?: DeliveryManRequestHandler,
+    private readonly responsePublisher?: SQSResponsePublisher,
+  ) {
     this.sqsClient = new SQSClient({});
   }
 
@@ -86,14 +92,22 @@ export class SQSConsumer implements OnModuleInit, OnModuleDestroy {
       if (response.Messages) {
         for (const message of response.Messages) {
           try {
-            const sqsMessage: SQSMessage = {
-              messageId: message.MessageId!,
-              body: message.Body!,
-              attributes: message.Attributes || {},
-              messageAttributes: message.MessageAttributes || {},
-            };
+            const messageType = message.MessageAttributes?.messageType?.StringValue;
+            
+            if (messageType === 'REQUEST' && this.requestHandler && this.responsePublisher) {
+              
+              await this.processServiceRequest(message, queueUrl);
+            } else {
+              
+              const sqsMessage: SQSMessage = {
+                messageId: message.MessageId!,
+                body: message.Body!,
+                attributes: message.Attributes || {},
+                messageAttributes: message.MessageAttributes || {},
+              };
 
-            await handler.handle(sqsMessage);
+              await handler.handle(sqsMessage);
+            }
 
             await this.deleteMessage(queueUrl, message.ReceiptHandle!);
           } catch (error) {
@@ -103,6 +117,23 @@ export class SQSConsumer implements OnModuleInit, OnModuleDestroy {
       }
     } catch (error) {
       console.error('Error polling queue:', error);
+    }
+  }
+
+  private async processServiceRequest(message: any, queueUrl: string): Promise<void> {
+    try {
+      const request: ServiceRequest = JSON.parse(message.Body!);
+      
+      console.log(`Processing service request: ${request.type}`);
+      
+      const response = await this.requestHandler!.handle(request);
+      
+      if (request.replyTo) {
+        await this.responsePublisher!.publishResponse(response, request.replyTo);
+        console.log(`Response sent to: ${request.replyTo}`);
+      }
+    } catch (error) {
+      console.error('Error processing service request:', error);
     }
   }
 
