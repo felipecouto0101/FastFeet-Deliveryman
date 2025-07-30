@@ -63,6 +63,29 @@ export class DynamoDBDeliveryManRepository implements DeliveryManRepository {
     }
   }
 
+  async findByCpf(cpf: string): Promise<DeliveryMan | null> {
+    try {
+      const command = new ScanCommand({
+        TableName: this.tableName,
+        FilterExpression: 'cpf = :cpf',
+        ExpressionAttributeValues: {
+          ':cpf': cpf,
+        },
+        Limit: 1,
+      });
+
+      const response = await this.ddbDocClient.send(command);
+
+      if (!response.Items || response.Items.length === 0) {
+        return null;
+      }
+
+      return this.mapToEntity(response.Items[0]);
+    } catch (error) {
+      throw new DatabaseQueryError('findByCpf', error.message);
+    }
+  }
+
   async findAll(params?: PaginationParams): Promise<PaginatedResult<DeliveryMan>> {
     try {
       const scanParams: any = {
