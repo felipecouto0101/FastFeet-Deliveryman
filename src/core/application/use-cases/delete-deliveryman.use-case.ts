@@ -20,7 +20,7 @@ export class DeleteDeliveryManUseCase {
     
     deliveryMan.markAsDeleted();
     
-    // Publish domain events before deletion
+    
     if (deliveryMan.domainEvents.length > 0) {
       await this.eventPublisher.publishBatch(deliveryMan.domainEvents);
       deliveryMan.clearEvents();

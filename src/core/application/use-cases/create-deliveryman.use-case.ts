@@ -35,7 +35,7 @@ export class CreateDeliveryManUseCase {
 
     await this.deliveryManRepository.create(deliveryMan);
 
-    // Publish domain events
+    
     if (deliveryMan.domainEvents.length > 0) {
       await this.eventPublisher.publishBatch(deliveryMan.domainEvents);
       deliveryMan.clearEvents();

@@ -50,7 +50,7 @@ export class UpdateDeliveryManUseCase {
 
     await this.deliveryManRepository.update(deliveryMan);
 
-    // Publish domain events
+    
     if (deliveryMan.domainEvents.length > 0) {
       await this.eventPublisher.publishBatch(deliveryMan.domainEvents);
       deliveryMan.clearEvents();
